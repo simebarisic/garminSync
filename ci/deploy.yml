@@ -1,0 +1,57 @@
+name: deploy
+
+# Ručni deploy na mordor (Actions → deploy → Run workflow) – besplatna zamjena za "required reviewers".
+# Potrebni secreti: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY (isti deploy ključ kao za Moj Kompić može poslužiti).
+# Na serveru mora postojati ~/garmin-sync/.env (secreti se NIKAD ne kopiraju iz repoa).
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (latest ili commit SHA)'
+        default: latest
+        required: true
+
+concurrency: deploy-garmin-sync
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH ključ
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+          echo "SSH=ssh -i $HOME/.ssh/deploy -o BatchMode=yes" >> "$GITHUB_ENV"
+
+      - name: Kopiraj compose, Grafanu i backup skriptu
+        run: |
+          $SSH "$TARGET" 'mkdir -p ~/garmin-sync/backups'
+          tar czf - docker-compose.yml grafana/provisioning grafana/dashboards backup \
+            | $SSH "$TARGET" 'tar xzf - -C ~/garmin-sync'
+
+      - name: Pull i restart
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/garmin-sync:${{ inputs.tag }}"
+          echo "$GH_TOKEN" | $SSH "$TARGET" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          $SSH "$TARGET" "set -e
+            cd ~/garmin-sync
+            test -f .env || { echo '::error::~/garmin-sync/.env ne postoji na serveru'; exit 1; }
+            export APP_IMAGE='$IMAGE'
+            docker compose pull app grafana db backup
+            docker compose up -d --no-build --remove-orphans
+            docker image prune -f
+            sleep 10
+            docker compose ps
+            docker compose logs app --tail 15"

@@ -1,0 +1,19 @@
+{
+  "name": "garmin-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Povlači san, HRV i dnevni wellness s Garmin Personal API-ja u vlastiti Postgres",
+  "main": "src/index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "sync": "node src/index.js sync",
+    "backfill": "node src/index.js backfill",
+    "report": "node src/index.js report",
+    "start": "node src/index.js daemon",
+    "test": "node --test test/*.test.js",
+    "dashboard": "node grafana/gen-dashboard.js grafana/dashboards/oporavak.json"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: garmin
+    folder: Garmin
+    type: file
+    disableDeletion: true
+    allowUiUpdates: true   # možeš mijenjati u UI-ju; trajne izmjene izvezi u grafana/dashboards/*.json
+    options:
+      path: /etc/grafana/dashboards

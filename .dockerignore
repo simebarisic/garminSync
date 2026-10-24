@@ -1,0 +1,10 @@
+.env
+.git
+node_modules
+output
+backups
+grafana
+backup
+.github
+test
+*.md

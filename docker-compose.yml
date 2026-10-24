@@ -1,0 +1,89 @@
+# garmin-sync – vlastita baza, vlastiti volume, vlastita mreža.
+# Ništa ne dijeli s drugim servisima (Moj Kompić, Jarvis...).
+
+name: garmin-sync
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: garmin
+      POSTGRES_USER: garmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?postavi POSTGRES_PASSWORD u .env}
+    volumes:
+      - garmin-db:/var/lib/postgresql/data
+    ports:
+      # samo lokalno – za psql/Grafanu s istog stroja; nikad javno
+      - "127.0.0.1:${DB_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U garmin -d garmin"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: ${APP_IMAGE:-garmin-sync:local}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://garmin:${POSTGRES_PASSWORD}@db:5432/garmin
+      GARMIN_API_KEY: ${GARMIN_API_KEY:?postavi GARMIN_API_KEY u .env}
+      TZ_NAME: ${TZ_NAME:-Europe/Zagreb}
+      SYNC_TIMES: ${SYNC_TIMES:-09:30,21:30}
+      SYNC_DAYS: ${SYNC_DAYS:-3}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:-}   # app kreira read-only rolu garmin_reader
+      BIRTH_DATE: ${BIRTH_DATE:-}                     # za biološku dob (inače iz Garmina)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      MORNING_MESSAGE: ${MORNING_MESSAGE:-true}
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: garmin
+      PGDATABASE: garmin
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ_NAME:-Europe/Zagreb}
+      BACKUP_TIME: ${BACKUP_TIME:-03:15}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backup/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?postavi GRAFANA_DB_PASSWORD u .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?postavi GRAFANA_ADMIN_PASSWORD u .env}
+      # gledanje bez logina (samo lokalno); za uređivanje se logiraj kao admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/oporavak.json
+      # bez slanja ičega van
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+
+volumes:
+  garmin-db:
+  grafana-data:
