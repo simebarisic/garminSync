@@ -8,6 +8,7 @@ name: garmin-sync
 
 services:
   db:
+    mem_limit: 512m
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -26,6 +27,7 @@ services:
       retries: 10
 
   app:
+    mem_limit: 384m
     build: .
     image: ${APP_IMAGE:-garmin-sync:local}
     restart: unless-stopped
@@ -45,6 +47,7 @@ services:
       MORNING_MESSAGE: ${MORNING_MESSAGE:-true}
 
   backup:
+    mem_limit: 256m
     image: postgres:16-alpine
     restart: unless-stopped
     depends_on:
@@ -64,6 +67,7 @@ services:
       - ./backups:/backups
 
   grafana:
+    mem_limit: 512m
     image: grafana/grafana-oss:11.4.0
     restart: unless-stopped
     depends_on:
