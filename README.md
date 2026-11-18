@@ -8,7 +8,7 @@ Fitness Age** u **vlastitu Postgres bazu**, računa jutarnju procjenu oporavka (
 |---|---|
 | `db` | Postgres 16, vlastiti volume, port samo na `127.0.0.1` |
 | `app` | sync daemon + biološka dob + Telegram |
-| `grafana` | dashboard na http://localhost:3000 (read-only korisnik baze) |
+| `grafana` | dashboard na http://localhost:3034 (read-only korisnik baze) |
 | `backup` | `pg_dump` svaku noć u `./backups`, rotacija |
 
 ## Pokretanje (Mac, Docker Desktop)
@@ -19,7 +19,7 @@ docker compose up -d --build
 docker compose run --rm app node src/index.js backfill --from 2025-01-01   # povijest
 ```
 
-Zatim http://localhost:3000.
+Zatim http://localhost:3034.
 
 ## Naredbe
 
@@ -95,7 +95,7 @@ psql "postgres://garmin:<lozinka>@127.0.0.1:5434/garmin" -c "select * from garmi
 
 ## Dashboard (Grafana)
 
-http://localhost:3000 – bez logina za gledanje; `admin` / `GRAFANA_ADMIN_PASSWORD` za uređivanje.
+http://localhost:3034 – bez logina za gledanje; `admin` / `GRAFANA_ADMIN_PASSWORD` za uređivanje.
 Grafana se spaja kao **`garmin_reader`** (read-only rola koju `app` kreira pri pokretanju).
 
 Dashboard se **generira kodom**: `grafana/gen-dashboard.js` → `npm run dashboard` →
@@ -119,8 +119,8 @@ Za offsite kopiju povremeno prebaci `./backups` na šifrirani vanjski disk.
 
 Secreti u repou: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`.
 Na serveru jednom ručno: `mkdir ~/garmin-sync` i u njega `.env` (secreti nikad ne idu kroz git).
-Ako je port 3000 na serveru zauzet, u serverskom `.env` postavi drugi `GRAFANA_PORT`.
-Grafani na serveru pristupaj preko WireGuarda ili SSH tunela (`ssh -L 3000:127.0.0.1:3000 mordor`).
+Ako je port 3034 na serveru zauzet, u serverskom `.env` postavi drugi `GRAFANA_PORT`.
+Grafani na serveru pristupaj preko WireGuarda ili SSH tunela (`ssh -L 3034:127.0.0.1:3034 mordor`).
 
 > **Pazi:** pokreni daemon samo na jednom mjestu (Mac *ili* server) – inače oba troše isti API ključ
 > i oba šalju Telegram poruke.

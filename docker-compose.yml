@@ -1,3 +1,6 @@
+# Shema portova za sve lokalne Docker aplikacije: web 30xx, API 80xx, baza 54xx (xx = broj aplikacije).
+# garmin-sync = 34: Grafana 127.0.0.1:3034, baza 127.0.0.1:5434.
+
 # garmin-sync – vlastita baza, vlastiti volume, vlastita mreža.
 # Ništa ne dijeli s drugim servisima (Moj Kompić, Jarvis...).
 
@@ -82,7 +85,7 @@ services:
       - ./grafana/dashboards:/etc/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-3034}:3000"
 
 volumes:
   garmin-db:
